@@ -60,7 +60,7 @@ El estudio evalúa el impacto de la velocidad de agitación, el caudal de aireac
 
 ---
 
-## 🛠️ Arquitectura Técnica
+## Arquitectura Técnica
 
 * **Frontend:** HTML5, CSS3 nativo y JavaScript vanilla (sin frameworks pesados para garantizar compatibilidad móvil y de escritorio).
 * **Empaquetado en cliente:** `JSZip` vía CDN para compilar descargas `.zip` de forma asíncrona en memoria.
