@@ -4,7 +4,7 @@ Plataforma interactiva para el análisis comparativo del comportamiento hidrodin
 
 ---
 
-## 📌 Contexto del Diseño Experimental
+## Contexto del Diseño Experimental
 
 El estudio evalúa el impacto de la velocidad de agitación, el caudal de aireación y el volumen de líquido sobre la distribución del tamaño de burbujas, retención gaseosa (*gas hold-up*) y patrones de mezclado en un biorreactor de tanque agitado:
 
@@ -15,7 +15,7 @@ El estudio evalúa el impacto de la velocidad de agitación, el caudal de aireac
 
 ---
 
-## 🚀 Funcionalidades de la Plataforma
+## Funcionalidades de la Plataforma
 
 * **Matriz Operativa 3x3:** Visualización simultánea desacoplada por nivel de volumen para evaluar la transición entre agitación (filas) y aireación (columnas).
 * **Filtro Comparativo Cruzado:** Selector multi-variable para aislar condiciones específicas (ej. comparar el efecto de la altura de columna manteniendo constantes RPM y VVM).
@@ -26,7 +26,7 @@ El estudio evalúa el impacto de la velocidad de agitación, el caudal de aireac
 
 ---
 
-## 🔬 Matriz de Corridas Experimentales
+## Matriz de Corridas Experimentales
 
 | Corrida | Volumen (L) | VVM ($\text{min}^{-1}$) | Flujo Volumétrico (L/min) | Flujo Másico (g/min) | Agitación (RPM) |
 | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -70,7 +70,7 @@ El estudio evalúa el impacto de la velocidad de agitación, el caudal de aireac
 
 ---
 
-## 📊 Criterios de Evaluación Hidrodinámica
+## Criterios de Evaluación Hidrodinámica
 
 Al inspeccionar los paneles visuales, los regímenes observados corresponden a:
 
