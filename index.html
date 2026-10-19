@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Diseño Experimental - Dispersión de Burbujas</title>
+  <!-- JSZip para permitir descarga de todos los videos en un solo archivo comprimido -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     :root {
       --bg: #0b1120;
@@ -16,6 +18,7 @@
       --tag-0rpm: #f43f5e;
       --tag-150rpm: #f59e0b;
       --tag-300rpm: #10b981;
+      --compare-color: #818cf8;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -58,13 +61,43 @@
     .btn:hover { background: #273549; border-color: var(--accent); }
     .btn-primary { background: var(--accent); color: #041019; font-weight: 600; border: none; }
     .btn-primary:hover { background: var(--accent-hover); color: #fff; }
+    .btn-compare { background: var(--compare-color); color: #0f172a; font-weight: 600; border: none; }
+    .btn-compare:hover { background: #6366f1; color: #fff; }
 
+    /* Barra de Navegación de Vistas */
+    .view-switcher {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+      background: #070c18;
+      padding: 0.35rem;
+      border-radius: 8px;
+      width: fit-content;
+      border: 1px solid var(--border);
+    }
+    .view-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.5rem 1.2rem;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .view-btn.active {
+      background: var(--card-bg);
+      color: var(--accent);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    /* Pestañas de Volumen */
     .tabs {
       display: flex;
       gap: 0.5rem;
       margin-bottom: 1rem;
-      background: #070c18;
-      padding: 0.35rem;
+      background: #0f172a;
+      padding: 0.3rem;
       border-radius: 8px;
       width: fit-content;
       border: 1px solid var(--border);
@@ -73,18 +106,62 @@
       background: transparent;
       border: none;
       color: var(--text-muted);
-      padding: 0.45rem 1.1rem;
+      padding: 0.4rem 1rem;
       border-radius: 6px;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       cursor: pointer;
       font-weight: 600;
     }
     .tab-btn.active {
       background: var(--card-bg);
       color: var(--accent);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
     }
 
+    /* Panel de Filtros Multi-variable */
+    .filter-panel {
+      background: #111a2e;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      align-items: center;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.82rem;
+    }
+    .filter-group label {
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .filter-options {
+      display: flex;
+      gap: 0.4rem;
+    }
+    .chip {
+      background: #1e293b;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.25rem 0.65rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .chip.selected {
+      background: var(--accent);
+      color: #041019;
+      font-weight: 600;
+      border-color: var(--accent);
+    }
+
+    /* Cuadrícula de Videos */
     .grid-container {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -101,6 +178,11 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+    .card.is-selected {
+      border: 2px solid var(--compare-color);
     }
 
     .card-header {
@@ -112,12 +194,14 @@
       font-size: 0.8rem;
     }
     .card-title { font-weight: 700; color: #fff; }
+    .badges-box { display: flex; gap: 0.35rem; align-items: center; }
     .badge {
       padding: 0.15rem 0.45rem;
       border-radius: 4px;
       font-size: 0.72rem;
       font-weight: bold;
     }
+    .badge-vol { background: rgba(56, 189, 248, 0.15); color: var(--accent); }
     .badge-0 { background: rgba(244, 63, 94, 0.2); color: var(--tag-0rpm); }
     .badge-150 { background: rgba(245, 158, 11, 0.2); color: var(--tag-150rpm); }
     .badge-300 { background: rgba(16, 185, 129, 0.2); color: var(--tag-300rpm); }
@@ -148,8 +232,27 @@
       align-items: center;
       background: #151e2d;
     }
+    .card-actions { display: flex; gap: 0.35rem; }
 
-    /* Modal ampliado */
+    /* Barra flotante de selección para comparar */
+    .compare-tray {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e1b4b;
+      border: 1px solid var(--compare-color);
+      padding: 0.65rem 1.25rem;
+      border-radius: 50px;
+      display: none;
+      align-items: center;
+      gap: 1rem;
+      z-index: 90;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+    }
+    .compare-tray.active { display: flex; }
+
+    /* Modal Zoom */
     .modal {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
@@ -181,6 +284,32 @@
       max-height: 70vh;
       background: #000;
     }
+
+    /* Modal de Comparación Lado a Lado */
+    .compare-modal {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.92);
+      display: none;
+      flex-direction: column;
+      z-index: 105;
+      padding: 1.5rem;
+    }
+    .compare-modal.active { display: flex; }
+    .compare-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .compare-grid {
+      display: grid;
+      gap: 1rem;
+      flex: 1;
+      width: 100%;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
@@ -188,32 +317,81 @@
   <header>
     <div>
       <h1>Diseño Experimental: Dispersión de Burbujas</h1>
-      <p class="subtitle">Matriz 3x3 comparativa por nivel de volumen operativo</p>
+      <p class="subtitle">Análisis Hidrodinámico, Comparación Multi-variable y Descarga Directa</p>
     </div>
     <div class="toolbar">
       <button class="btn btn-primary" onclick="togglePlayAll()">▶/⏸ Reproducir Todos</button>
       <button class="btn" onclick="setSpeed(0.5)">0.5x</button>
       <button class="btn" onclick="setSpeed(1.0)">1.0x</button>
       <button class="btn" onclick="resetAll()">⟲ Reiniciar</button>
+      <button class="btn" id="btnDownloadAll" onclick="downloadAllZip()">📦 Descargar Todos (.ZIP)</button>
     </div>
   </header>
 
-  <!-- Pestañas por Volumen -->
-  <div class="tabs">
+  <!-- Selector de Vista Principal -->
+  <div class="view-switcher">
+    <button class="view-btn active" onclick="switchMainView('matrix')">Matriz por Volumen (3x3)</button>
+    <button class="view-btn" onclick="switchMainView('filter')">Filtro Comparativo Cruzado</button>
+  </div>
+
+  <!-- Pestañas para Vista Matriz (35, 38, 40L) -->
+  <div class="tabs" id="matrixTabs">
     <button class="tab-btn active" onclick="switchVolume(35)">Volumen 35 L</button>
     <button class="tab-btn" onclick="switchVolume(38)">Volumen 38 L</button>
     <button class="tab-btn" onclick="switchVolume(40)">Volumen 40 L</button>
   </div>
 
+  <!-- Panel de Filtro Cruzado (Oculto en vista matriz) -->
+  <div class="filter-panel" id="filterPanel" style="display: none;">
+    <div class="filter-group">
+      <label>Volumen (L):</label>
+      <div class="filter-options">
+        <span class="chip selected" onclick="toggleFilter('vol', 35, this)">35 L</span>
+        <span class="chip selected" onclick="toggleFilter('vol', 38, this)">38 L</span>
+        <span class="chip selected" onclick="toggleFilter('vol', 40, this)">40 L</span>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label>VVM (min⁻¹):</label>
+      <div class="filter-options">
+        <span class="chip selected" onclick="toggleFilter('vvm', 0.45, this)">0.45</span>
+        <span class="chip selected" onclick="toggleFilter('vvm', 0.75, this)">0.75</span>
+        <span class="chip selected" onclick="toggleFilter('vvm', 1.10, this)">1.10</span>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label>Agitación (RPM):</label>
+      <div class="filter-options">
+        <span class="chip selected" onclick="toggleFilter('rpm', 0, this)">0 RPM</span>
+        <span class="chip selected" onclick="toggleFilter('rpm', 150, this)">150 RPM</span>
+        <span class="chip selected" onclick="toggleFilter('rpm', 300, this)">300 RPM</span>
+      </div>
+    </div>
+
+    <button class="btn" style="margin-left: auto; font-size: 0.75rem;" onclick="resetFilters()">Restablecer Filtros</button>
+  </div>
+
   <!-- Matriz de Videos -->
   <div class="grid-container" id="gridContainer"></div>
 
-  <!-- Modal Zoom -->
+  <!-- Barra flotante de selección para comparar -->
+  <div class="compare-tray" id="compareTray">
+    <span id="compareCount" style="font-size: 0.85rem; font-weight: 600;">0 videos seleccionados</span>
+    <button class="btn btn-compare" onclick="openCompareModal()">Comparar Lado a Lado</button>
+    <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="clearSelection()">Limpiar</button>
+  </div>
+
+  <!-- Modal Zoom Individual -->
   <div class="modal" id="videoModal" onclick="closeModal()">
     <div class="modal-content" onclick="event.stopPropagation()">
       <div class="modal-header">
         <span id="modalTitle" style="font-weight: 600;">Detalle</span>
-        <button class="btn" style="padding: 0.2rem 0.6rem;" onclick="closeModal()">✕</button>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn" id="modalDownloadBtn" style="padding: 0.2rem 0.6rem;">⬇ Descargar</button>
+          <button class="btn" style="padding: 0.2rem 0.6rem;" onclick="closeModal()">✕</button>
+        </div>
       </div>
       <div class="modal-video-box">
         <video id="modalVideo" controls autoplay loop></video>
@@ -221,11 +399,23 @@
     </div>
   </div>
 
+  <!-- Modal de Comparación Multi-video -->
+  <div class="compare-modal" id="compareModal">
+    <div class="compare-modal-header">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <h2 style="font-size: 1.15rem; color: #fff;">Comparación Simultánea</h2>
+        <button class="btn btn-primary" onclick="toggleComparePlay()">▶/⏸ Sincronizar</button>
+        <button class="btn" onclick="setCompareSpeed(0.5)">0.5x</button>
+        <button class="btn" onclick="setCompareSpeed(1.0)">1.0x</button>
+      </div>
+      <button class="btn" onclick="closeCompareModal()">✕ Cerrar Comparativa</button>
+    </div>
+    <div class="compare-grid" id="compareGrid"></div>
+  </div>
+
   <script>
-    // Enlace base a Cloudflare R2
     const BASE_VIDEO_URL = "https://pub-3f3a15c3826d4f9c8735d0bbc62ec9a4.r2.dev/";
 
-    // 27 corridas exactas según el diseño experimental
     const runsData = [
       { id: 1,  vol: 35, vvm: 0.45, flow: 15.75, mass: 16.51, rpm: 0 },
       { id: 2,  vol: 35, vvm: 0.45, flow: 15.75, mass: 16.51, rpm: 150 },
@@ -256,39 +446,48 @@
       { id: 27, vol: 40, vvm: 1.10, flow: 44.00, mass: 46.11, rpm: 300 }
     ];
 
+    let currentMainView = 'matrix'; // 'matrix' o 'filter'
     let currentVolume = 35;
+    let selectedRunIds = new Set();
 
-    function renderGrid() {
-      const container = document.getElementById('gridContainer');
-      container.innerHTML = '';
+    // Filtros activos
+    const activeFilters = {
+      vol: [35, 38, 40],
+      vvm: [0.45, 0.75, 1.10],
+      rpm: [0, 150, 300]
+    };
 
-      // Ordena por RPM (0, 150, 300) y por VVM (0.45, 0.75, 1.10)
-      const currentRuns = runsData
-        .filter(r => r.vol === currentVolume)
-        .sort((a, b) => a.rpm - b.rpm || a.vvm - b.vvm);
-
-      currentRuns.forEach(run => {
-        const card = document.createElement('div');
-        card.className = 'card';
-
-        const badgeClass = run.rpm === 0 ? 'badge-0' : (run.rpm === 150 ? 'badge-150' : 'badge-300');
-        const videoSrc = `${BASE_VIDEO_URL}${run.id}.mp4`;
-
-        card.innerHTML = `
-          <div class="card-header">
-            <span class="card-title">Corrida #${run.id} (${run.vol}L)</span>
-            <span class="badge ${badgeClass}">${run.rpm} RPM</span>
-          </div>
-          <div class="video-wrapper">
-            <video id="vid-${run.id}" src="${videoSrc}" loop muted playsinline preload="metadata" onclick="openModal(${run.id})"></video>
-          </div>
-          <div class="card-footer">
-            <span><strong>${run.vvm} VVM</strong> (${run.flow} L/min)</span>
-            <button class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;" onclick="openModal(${run.id})">🔍 Zoom</button>
-          </div>
-        `;
-        container.appendChild(card);
+    function switchMainView(view) {
+      currentMainView = view;
+      document.querySelectorAll('.view-btn').forEach((btn, idx) => {
+        btn.classList.toggle('active', (view === 'matrix' && idx === 0) || (view === 'filter' && idx === 1));
       });
+
+      document.getElementById('matrixTabs').style.display = view === 'matrix' ? 'flex' : 'none';
+      document.getElementById('filterPanel').style.display = view === 'filter' ? 'flex' : 'none';
+      renderGrid();
+    }
+
+    function toggleFilter(category, val, el) {
+      const arr = activeFilters[category];
+      const index = arr.indexOf(val);
+      if (index > -1) {
+        if (arr.length === 1) return; // Evitar dejar vacía la categoría
+        arr.splice(index, 1);
+        el.classList.remove('selected');
+      } else {
+        arr.push(val);
+        el.classList.add('selected');
+      }
+      renderGrid();
+    }
+
+    function resetFilters() {
+      activeFilters.vol = [35, 38, 40];
+      activeFilters.vvm = [0.45, 0.75, 1.10];
+      activeFilters.rpm = [0, 150, 300];
+      document.querySelectorAll('.chip').forEach(c => c.classList.add('selected'));
+      renderGrid();
     }
 
     function switchVolume(vol) {
@@ -299,6 +498,170 @@
       renderGrid();
     }
 
+    function renderGrid() {
+      const container = document.getElementById('gridContainer');
+      container.innerHTML = '';
+
+      let list = [];
+      if (currentMainView === 'matrix') {
+        list = runsData
+          .filter(r => r.vol === currentVolume)
+          .sort((a, b) => a.rpm - b.rpm || a.vvm - b.vvm);
+      } else {
+        list = runsData.filter(r => 
+          activeFilters.vol.includes(r.vol) &&
+          activeFilters.vvm.includes(r.vvm) &&
+          activeFilters.rpm.includes(r.rpm)
+        );
+      }
+
+      list.forEach(run => {
+        const card = document.createElement('div');
+        const isSelected = selectedRunIds.has(run.id);
+        card.className = `card ${isSelected ? 'is-selected' : ''}`;
+        card.id = `card-${run.id}`;
+
+        const badgeClass = run.rpm === 0 ? 'badge-0' : (run.rpm === 150 ? 'badge-150' : 'badge-300');
+        const videoSrc = `${BASE_VIDEO_URL}${run.id}.mp4`;
+
+        card.innerHTML = `
+          <div class="card-header">
+            <span class="card-title">Corrida #${run.id}</span>
+            <div class="badges-box">
+              <span class="badge badge-vol">${run.vol}L</span>
+              <span class="badge ${badgeClass}">${run.rpm} RPM</span>
+            </div>
+          </div>
+          <div class="video-wrapper">
+            <video id="vid-${run.id}" src="${videoSrc}" loop muted playsinline preload="metadata" onclick="openModal(${run.id})"></video>
+          </div>
+          <div class="card-footer">
+            <span><strong>${run.vvm} VVM</strong> (${run.flow} L/min)</span>
+            <div class="card-actions">
+              <button class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;" onclick="toggleSelectRun(${run.id})">
+                ${isSelected ? '✓ Elegido' : '+ Comparar'}
+              </button>
+              <button class="btn" style="padding: 0.2rem 0.45rem; font-size: 0.7rem;" title="Descargar Video" onclick="downloadSingleVideo(${run.id})">
+                ⬇
+              </button>
+              <button class="btn" style="padding: 0.2rem 0.45rem; font-size: 0.7rem;" title="Zoom" onclick="openModal(${run.id})">
+                🔍
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      updateCompareTray();
+    }
+
+    // Manejo de Selección para Comparar
+    function toggleSelectRun(id) {
+      if (selectedRunIds.has(id)) {
+        selectedRunIds.delete(id);
+      } else {
+        selectedRunIds.add(id);
+      }
+      renderGrid();
+    }
+
+    function clearSelection() {
+      selectedRunIds.clear();
+      renderGrid();
+    }
+
+    function updateCompareTray() {
+      const tray = document.getElementById('compareTray');
+      const count = document.getElementById('compareCount');
+      if (selectedRunIds.size > 0) {
+        tray.classList.add('active');
+        count.textContent = `${selectedRunIds.size} video${selectedRunIds.size > 1 ? 's' : ''} seleccionado${selectedRunIds.size > 1 ? 's' : ''}`;
+      } else {
+        tray.classList.remove('active');
+      }
+    }
+
+    // Modal Comparativo Lado a Lado
+    function openCompareModal() {
+      if (selectedRunIds.size === 0) return;
+      const modal = document.getElementById('compareModal');
+      const grid = document.getElementById('compareGrid');
+      grid.innerHTML = '';
+
+      // Determinar columnas dinámicamente según cantidad
+      const count = selectedRunIds.size;
+      grid.style.gridTemplateColumns = count === 2 ? 'repeat(2, 1fr)' : (count <= 4 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)');
+
+      Array.from(selectedRunIds).forEach(id => {
+        const run = runsData.find(r => r.id === id);
+        const badgeClass = run.rpm === 0 ? 'badge-0' : (run.rpm === 150 ? 'badge-150' : 'badge-300');
+        const box = document.createElement('div');
+        box.className = 'card';
+        box.innerHTML = `
+          <div class="card-header">
+            <span class="card-title">Corrida #${run.id} (${run.vol}L)</span>
+            <div class="badges-box">
+              <span class="badge ${badgeClass}">${run.rpm} RPM</span>
+              <span class="badge badge-vol">${run.vvm} VVM</span>
+            </div>
+          </div>
+          <div class="video-wrapper">
+            <video class="compare-video" src="${BASE_VIDEO_URL}${run.id}.mp4" loop muted playsinline></video>
+          </div>
+          <div class="card-footer">
+            <span>Flujo: ${run.flow} L/min (${run.mass} g/min)</span>
+            <button class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;" onclick="downloadSingleVideo(${run.id})">⬇ Descargar</button>
+          </div>
+        `;
+        grid.appendChild(box);
+      });
+
+      modal.classList.add('active');
+      setTimeout(() => {
+        document.querySelectorAll('.compare-video').forEach(v => v.play());
+      }, 100);
+    }
+
+    function closeCompareModal() {
+      document.querySelectorAll('.compare-video').forEach(v => v.pause());
+      document.getElementById('compareModal').classList.remove('active');
+    }
+
+    let isComparePlaying = true;
+    function toggleComparePlay() {
+      const vids = document.querySelectorAll('.compare-video');
+      isComparePlaying = !isComparePlaying;
+      vids.forEach(v => isComparePlaying ? v.play() : v.pause());
+    }
+
+    function setCompareSpeed(rate) {
+      document.querySelectorAll('.compare-video').forEach(v => v.playbackRate = rate);
+    }
+
+    // Modal Individual
+    function openModal(runId) {
+      const run = runsData.find(r => r.id === runId);
+      const modal = document.getElementById('videoModal');
+      const modalVideo = document.getElementById('modalVideo');
+      const title = document.getElementById('modalTitle');
+      const dBtn = document.getElementById('modalDownloadBtn');
+
+      title.textContent = `Corrida #${run.id} | ${run.vol}L | ${run.rpm} RPM | ${run.vvm} VVM (${run.flow} L/min)`;
+      modalVideo.src = `${BASE_VIDEO_URL}${run.id}.mp4`;
+      dBtn.onclick = () => downloadSingleVideo(run.id);
+      modalVideo.play();
+      modal.classList.add('active');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('videoModal');
+      const modalVideo = document.getElementById('modalVideo');
+      modalVideo.pause();
+      modal.classList.remove('active');
+    }
+
+    // Controles de Matriz
     let isPlaying = false;
     function togglePlayAll() {
       const videos = document.querySelectorAll('.grid-container video');
@@ -323,23 +686,61 @@
       });
     }
 
-    function openModal(runId) {
+    // Descarga de Video Individual
+    async function downloadSingleVideo(runId) {
       const run = runsData.find(r => r.id === runId);
-      const modal = document.getElementById('videoModal');
-      const modalVideo = document.getElementById('modalVideo');
-      const title = document.getElementById('modalTitle');
-
-      title.textContent = `Corrida #${run.id} | Vol: ${run.vol}L | ${run.rpm} RPM | ${run.vvm} VVM (${run.flow} L/min)`;
-      modalVideo.src = `${BASE_VIDEO_URL}${run.id}.mp4`;
-      modalVideo.play();
-      modal.classList.add('active');
+      const filename = `Corrida_${run.id}_${run.vol}L_${run.rpm}RPM_${run.vvm}VVM.mp4`;
+      const url = `${BASE_VIDEO_URL}${run.id}.mp4`;
+      
+      try {
+        const resp = await fetch(url);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      } catch (err) {
+        // Enlace directo de respaldo
+        window.open(url, '_blank');
+      }
     }
 
-    function closeModal() {
-      const modal = document.getElementById('videoModal');
-      const modalVideo = document.getElementById('modalVideo');
-      modalVideo.pause();
-      modal.classList.remove('active');
+    // Descarga de Todos los Videos en Archivo .ZIP
+    async function downloadAllZip() {
+      const btn = document.getElementById('btnDownloadAll');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+
+      try {
+        const zip = new JSZip();
+        for (let i = 0; i < runsData.length; i++) {
+          const run = runsData[i];
+          btn.innerHTML = `Descargando (${i + 1}/27)...`;
+          const url = `${BASE_VIDEO_URL}${run.id}.mp4`;
+          const resp = await fetch(url);
+          const blob = await resp.blob();
+          const filename = `Corrida_${run.id}_${run.vol}L_${run.rpm}RPM_${run.vvm}VVM.mp4`;
+          zip.file(filename, blob);
+        }
+
+        btn.innerHTML = 'Generando .ZIP...';
+        const content = await zip.generateAsync({ type: 'blob' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(content);
+        a.download = 'DOE_Biorreactor_27_Videos.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch (error) {
+        alert('Hubo un error al compilar el ZIP. Verifica la conexión a internet.');
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
     }
 
     renderGrid();
